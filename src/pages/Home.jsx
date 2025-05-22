@@ -441,7 +441,6 @@ function Home() {
               </div>
             ) : (
               <>
-                <div className="flex justify-between items-center mb-8">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-bold text-surface-900 dark:text-white">
                 {filteredProperties.length} Properties Available
@@ -561,7 +560,6 @@ function Home() {
                 <p className="text-surface-600 dark:text-surface-400">Try adjusting your filters to see more results</p>
               </div>
             )}
-          </div>
           </>
           )}
         </section>
