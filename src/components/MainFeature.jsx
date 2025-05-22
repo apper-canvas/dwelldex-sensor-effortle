@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
+import { saveSearch, fetchSearchHistory } from '../services/searchHistoryService';
+import { fetchPopularLocations } from '../services/locationService';
+import { fetchAmenities } from '../services/amenityService';
 import { getIcon } from '../utils/iconUtils';
 
 // Get icons
@@ -26,6 +30,9 @@ function MainFeature() {
     bathrooms: 'any'
   });
   
+  const [popularLocations, setPopularLocations] = useState([]);
+  const [amenities, setAmenities] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   // State for view mode (list or map)
   const [viewMode, setViewMode] = useState('list');
   
@@ -40,9 +47,42 @@ function MainFeature() {
       [name]: value
     });
   };
+
+  // Get user from Redux store
+  const { user, isAuthenticated } = useSelector((state) => state.user);
+  
+  // Fetch popular locations on component mount
+  useEffect(() => {
+    const loadPopularLocations = async () => {
+      try {
+        const locations = await fetchPopularLocations();
+        setPopularLocations(locations.map(loc => loc.Name));
+      } catch (err) {
+        console.error('Error loading popular locations:', err);
+        // Fallback to default locations
+        setPopularLocations(['New York', 'Los Angeles', 'Chicago', 'Miami', 'Seattle']);
+      }
+    };
+    
+    loadPopularLocations();
+  }, []);
+  
+  // Fetch amenities on component mount
+  useEffect(() => {
+    const loadAmenities = async () => {
+      try {
+        const amenitiesData = await fetchAmenities();
+        setAmenities(amenitiesData);
+      } catch (err) {
+        console.error('Error loading amenities:', err);
+      }
+    };
+    
+    loadAmenities();
+  }, []);
   
   // Handle search submission
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     
     // Validate form
@@ -50,12 +90,34 @@ function MainFeature() {
       toast.error("Please enter a location to search");
       return;
     }
+
+    setIsLoading(true);
     
-    // Show success message
-    toast.success(`Searching for properties in ${searchParams.location}`);
+    try {
+      // Save search to history if user is authenticated
+      if (isAuthenticated && user) {
+        await saveSearch(user.id, searchParams);
+      }
+      
+      // Show success message
+      toast.success(`Searching for properties in ${searchParams.location}`);
+      
+      // In a real app, this would trigger an API call to fetch properties
+      // For now, we just log the params
+      console.log("Search params:", searchParams);
+      
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error processing search:', err);
+      toast.error('Search failed. Please try again.');
+      setIsLoading(false);
+    }
+  };
     
-    // In a real app, this would trigger an API call
-    console.log("Search params:", searchParams);
+  // Set location from popular searches
+  const setLocation = (location) => {
+    setSearchParams({...searchParams, location});
+    toast.info(`Location set to ${location}`);
   };
   
   // Toggle advanced filters
@@ -142,6 +204,7 @@ function MainFeature() {
                   placeholder="City, neighborhood, or address"
                   className="input-field pl-10"
                   required
+                  disabled={isLoading}
                 />
                 <MapPinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-surface-400" />
               </div>
@@ -157,6 +220,7 @@ function MainFeature() {
                 <select
                   id="propertyType"
                   name="propertyType"
+                  disabled={isLoading}
                   value={searchParams.propertyType}
                   onChange={handleInputChange}
                   className="input-field appearance-none"
@@ -176,6 +240,7 @@ function MainFeature() {
             <div className="w-full md:w-auto">
               <motion.button
                 type="submit"
+                disabled={isLoading}
                 className="btn btn-primary w-full px-8 py-3 font-semibold"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -183,6 +248,9 @@ function MainFeature() {
                 <SearchIcon className="h-5 w-5 mr-2" />
                 Search
               </motion.button>
+              {isLoading && (
+                <div className="w-full text-center mt-2 text-surface-500 dark:text-surface-400 text-sm">Processing...</div>
+              )}
             </div>
           </div>
           
@@ -245,6 +313,7 @@ function MainFeature() {
                       <option value="750000-1000000">$750,000 - $1,000,000</option>
                       <option value="1000000+">$1,000,000+</option>
                     </select>
+                      disabled={isLoading}
                   </div>
                   
                   {/* Bedrooms */}
@@ -268,6 +337,7 @@ function MainFeature() {
                       <option value="4">4+</option>
                       <option value="5">5+</option>
                     </select>
+                      disabled={isLoading}
                   </div>
                   
                   {/* Bathrooms */}
@@ -291,6 +361,7 @@ function MainFeature() {
                     </select>
                   </div>
                 </div>
+                      disabled={isLoading}
                 
                 {/* Additional Filters */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
@@ -308,99 +379,68 @@ function MainFeature() {
                   <label className="flex items-center space-x-2 text-surface-700 dark:text-surface-300">
                     <input type="checkbox" className="rounded text-primary focus:ring-primary h-4 w-4" />
                     <span>Garage</span>
-                  </label>
-                  
-                  <label className="flex items-center space-x-2 text-surface-700 dark:text-surface-300">
-                    <input type="checkbox" className="rounded text-primary focus:ring-primary h-4 w-4" />
-                    <span>Waterfront</span>
-                  </label>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </form>
+                  <span>Air Conditioning</span>
         
         {/* View Content */}
         <div className="p-6 pt-0">
           {viewMode === 'list' ? (
-            <div className="bg-surface-100 dark:bg-surface-700 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+                  <span>Swimming Pool</span>
               <ListIcon className="h-12 w-12 text-primary mb-4" />
+                
+                {amenities.slice(0, 2).map(amenity => (
+                  <label key={amenity.id} className="flex items-center space-x-2 text-surface-700 dark:text-surface-300">
+                    <input type="checkbox" className="rounded text-primary focus:ring-primary h-4 w-4" />
+                    <span>{amenity.Name}</span>
+                  </label>
+                ))}
               <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-200 mb-2">
                 Enter a location to see available properties
               </h3>
               <p className="text-surface-600 dark:text-surface-400">
                 Use the search form above to find properties in your desired area
               </p>
-            </div>
-          ) : (
-            <div className="bg-surface-100 dark:bg-surface-700 rounded-xl p-4 h-64 flex flex-col items-center justify-center text-center">
-              <MapIcon className="h-12 w-12 text-primary mb-4" />
-              <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-200 mb-2">
-                Map View
-              </h3>
-              <p className="text-surface-600 dark:text-surface-400">
-                Enter a location to view properties on the map
-              </p>
-            </div>
-          )}
-        </div>
-        
-        {/* Popular Search Tags */}
-        <div className="px-6 pb-6">
-          <p className="text-sm text-surface-600 dark:text-surface-400 mb-2">
-            Popular searches:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => {
-                setSearchParams({...searchParams, location: 'New York'});
-                toast.info("Location set to New York");
-              }}
-              className="px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-full text-sm text-surface-700 dark:text-surface-300 transition-colors"
-            >
-              New York
-            </button>
-            <button 
-              onClick={() => {
-                setSearchParams({...searchParams, location: 'Los Angeles'});
-                toast.info("Location set to Los Angeles");
-              }}
-              className="px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-full text-sm text-surface-700 dark:text-surface-300 transition-colors"
-            >
-              Los Angeles
-            </button>
-            <button 
-              onClick={() => {
-                setSearchParams({...searchParams, location: 'Chicago'});
-                toast.info("Location set to Chicago");
-              }}
-              className="px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-full text-sm text-surface-700 dark:text-surface-300 transition-colors"
-            >
-              Chicago
-            </button>
-            <button 
-              onClick={() => {
-                setSearchParams({...searchParams, location: 'Miami'});
-                toast.info("Location set to Miami");
-              }}
-              className="px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-full text-sm text-surface-700 dark:text-surface-300 transition-colors"
-            >
-              Miami
-            </button>
-            <button 
-              onClick={() => {
-                setSearchParams({...searchParams, location: 'Seattle'});
-                toast.info("Location set to Seattle");
-              }}
-              className="px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-full text-sm text-surface-700 dark:text-surface-300 transition-colors"
-            >
-              Seattle
-            </button>
+      {/* View Content */}
+      <div className="p-6 pt-0">
+        {viewMode === 'list' ? (
+          <div className="bg-surface-100 dark:bg-surface-700 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+            <ListIcon className="h-12 w-12 text-primary mb-4" />
+            <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-200 mb-2">
+              Enter a location to see available properties
+            </h3>
+            <p className="text-surface-600 dark:text-surface-400">
+              Use the search form above to find properties in your desired area
+            </p>
           </div>
+        ) : (
+          <div className="bg-surface-100 dark:bg-surface-700 rounded-xl p-4 h-64 flex flex-col items-center justify-center text-center">
+            <MapIcon className="h-12 w-12 text-primary mb-4" />
+            <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-200 mb-2">
+              Map View
+            </h3>
+            <p className="text-surface-600 dark:text-surface-400">
+              Enter a location to view properties on the map
+            </p>
+          </div>
+        )}
+      </div>
+      
+      {/* Popular Search Tags */}
+      <div className="px-6 pb-6">
+        <p className="text-sm text-surface-600 dark:text-surface-400 mb-2">
+          Popular searches:
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {popularLocations.map((location, index) => (
+            <button 
+              key={index}
+              onClick={() => setLocation(location)}
+              disabled={isLoading}
+              className="px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-surface-300 dark:hover:bg-surface-600 rounded-full text-sm text-surface-700 dark:text-surface-300 transition-colors disabled:opacity-50"
+            >
+              {location}
+            </button>
+          ))}
         </div>
       </div>
-    </motion.div>
-  );
-}
-
-export default MainFeature;
+    </div>
+  </motion.div>
