@@ -233,6 +233,7 @@ function Home() {
                 <Link to="/login" className="btn btn-primary">
                   Post a Listing
                 </Link>
+              )}
             </nav>
             
             {/* Mobile menu button */}
@@ -278,7 +279,7 @@ function Home() {
                   <Link to="/login" className="w-full btn btn-primary">
                     Post a Listing
                   </Link>
-                </button>
+                )}
               </div>
             </motion.div>
           )}
