@@ -229,10 +229,10 @@ function Home() {
                     Logout
                   </button>
                 </div>
-              ) : (<button className="btn btn-primary">
-              <button className="btn btn-primary">
-                Post a Listing
-              </button>
+              ) : (
+                <Link to="/login" className="btn btn-primary">
+                  Post a Listing
+                </Link>
             </nav>
             
             {/* Mobile menu button */}
@@ -274,8 +274,10 @@ function Home() {
                       Logout
                     </button>
                   </div>
-                ) : (<button className="w-full btn btn-primary">
-                  Post a Listing
+                ) : (
+                  <Link to="/login" className="w-full btn btn-primary">
+                    Post a Listing
+                  </Link>
                 </button>
               </div>
             </motion.div>
@@ -439,8 +441,6 @@ function Home() {
             ) : (
               <>
                 <div className="flex justify-between items-center mb-8">
-        <section className="py-12 bg-surface-50 dark:bg-surface-900">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-bold text-surface-900 dark:text-white">
                 {filteredProperties.length} Properties Available
@@ -559,10 +559,10 @@ function Home() {
                 <h3 className="text-xl font-semibold text-surface-800 dark:text-surface-200 mb-2">No properties found</h3>
                 <p className="text-surface-600 dark:text-surface-400">Try adjusting your filters to see more results</p>
               </div>
-              </>
-            )}
             )}
           </div>
+          </>
+          )}
         </section>
       </main>
 
